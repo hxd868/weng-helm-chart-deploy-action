@@ -231,7 +231,7 @@ async function run() {
 
     // Setup necessary files.
     if (process.env.KUBECONFIG_FILE) {
-      process.env.KUBECONFIG = "~/.kube/config";
+      process.env.KUBECONFIG = "./kubeconfig.yml";
       await writeFile(process.env.KUBECONFIG, process.env.KUBECONFIG_FILE);
     }
     await writeFile("./values.yml", values);
