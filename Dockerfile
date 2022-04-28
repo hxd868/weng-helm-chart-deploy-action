@@ -5,8 +5,16 @@ ENV BASE_URL="https://get.helm.sh"
 ENV HELM_2_FILE="helm-v2.17.0-linux-amd64.tar.gz"
 ENV HELM_3_FILE="helm-v3.4.2-linux-amd64.tar.gz"
 
-RUN apk add --no-cache ca-certificates \
-    --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
+# Add the Sherwin Root Cert
+USER root
+ADD http://swroot.sherwin.com/swroot.pem /usr/local/share/ca-certificates/swroot.crt
+# Update the certificates
+RUN apt-get update && apt-get install ca-certificates -y && update-ca-certificates
+RUN chmod 444 /usr/local/share/ca-certificates/swroot.crt
+
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/swroot.crt
+
+RUN apk add --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
     jq curl bash nodejs aws-cli && \
     # Install helm version 2:
     curl -L ${BASE_URL}/${HELM_2_FILE} |tar xvz && \
