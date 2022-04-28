@@ -9,7 +9,7 @@ ENV HELM_3_FILE="helm-v3.4.2-linux-amd64.tar.gz"
 USER root
 ADD http://swroot.sherwin.com/swroot.pem /usr/local/share/ca-certificates/swroot.crt
 # Update the certificates
-RUN apt-get update && apt-get install ca-certificates -y && update-ca-certificates
+RUN apk add --nocache ca-certificates
 RUN chmod 444 /usr/local/share/ca-certificates/swroot.crt
 
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/swroot.crt
