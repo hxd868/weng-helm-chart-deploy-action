@@ -45,6 +45,9 @@ inputs:
   version:
     description: Version of the app, usually commit sha works here.
     required: false
+  repository:
+    description: Specify the URL for a helm repo to come from
+    required: false
 runs:
   using: docker
   image: Dockerfile
