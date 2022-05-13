@@ -48,6 +48,10 @@ inputs:
   repository:
     description: Specify the URL for a helm repo to come from
     required: false
+  timeout: 
+    description: Specify timeout
+    required: false
+    
 runs:
   using: docker
   image: Dockerfile
