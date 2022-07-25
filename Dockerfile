@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 FROM docker.artifactory.sherwin.com/alpine:3.15
-=======
-FROM alpine:3
->>>>>>> vimeda-upstream/master
 
 ENV BASE_URL="https://get.helm.sh"
 
