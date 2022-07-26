@@ -29,6 +29,12 @@ RUN apk add --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
     # Init version 2 helm:
     helm init --client-only
 
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+RUN unzip awscliv2.zip
+
+RUN ./aws/install
+
 ENV PYTHONPATH "/usr/lib/python3.8/site-packages/"
 
 COPY . /usr/src/
