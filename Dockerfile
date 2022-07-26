@@ -29,13 +29,17 @@ RUN apk add --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
     # Init version 2 helm:
     helm init --client-only
 
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-
-RUN unzip awscliv2.zip
-
-RUN ./aws/install
-
 ENV PYTHONPATH "/usr/lib/python3.8/site-packages/"
+
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    && pip3 install --upgrade pip \
+    && pip3 install --no-cache-dir \
+    awscli \
+    && rm -rf /var/cache/apk/*
+
+RUN aws --version   # Just to make sure its installed alright
 
 COPY . /usr/src/
 ENTRYPOINT ["node", "/usr/src/index.js"]
