@@ -14,8 +14,8 @@ RUN chmod 444 /usr/local/share/ca-certificates/swroot.crt
 
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/swroot.crt
 
-RUN apk add --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
-    jq curl bash nodejs aws-cli && \
+RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
+    jq curl bash nodejs && \
     # Install helm version 2:
     curl -L ${BASE_URL}/${HELM_2_FILE} |tar xvz && \
     mv linux-amd64/helm /usr/bin/helm && \
@@ -31,6 +31,7 @@ RUN apk add --repository http://dl-3.alpinelinux.org/alpine/edge/community/ \
 
 ENV PYTHONPATH "/usr/lib/python3.8/site-packages/"
 
+# Handle AWS CLI setup
 RUN apk add --no-cache \
     python3 \
     py3-pip \
