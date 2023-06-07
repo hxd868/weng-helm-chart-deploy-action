@@ -32,14 +32,13 @@ RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/comm
 ENV PYTHONPATH "/usr/lib/python3.8/site-packages/"
 
 # Handle AWS CLI setup
-RUN apk add --no-cache aws-cli
-#     apk add --no-cache \
-#     python3 \
-#     py3-pip \
-#     && pip3 install --upgrade pip \
-#     && pip3 install --no-cache-dir \
-#     awscli \
-#     && rm -rf /var/cache/apk/*
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    && pip3 install --upgrade pip \
+    && pip3 install --no-cache-dir \
+    awscli \
+    && rm -rf /var/cache/apk/*
 
 RUN aws --version   # Just to make sure its installed alright
 
