@@ -1,0 +1,35 @@
+apiVersion: v1
+
+kind: ConfigMap
+metadata:
+  labels:
+    app: {{ .Release.Name }}-envmap
+  name: {{ .Release.Name }}-envmap
+
+data:
+  DB_SERVICE: {{ .Values.envMap.dbService | quote }}
+  DB_HOSTNAME: {{ .Values.envMap.dbHostName | quote }}
+  DB_PORT: {{ .Values.envMap.dbPort | quote }}
+  SW_HOME: {{ .Values.envMap.swHome | quote }}
+  PROXY_IPS: {{ .Values.envMap.proxyIPs }}
+  APEX_IMAGES_REFRESH: {{ .Values.envMap.apexImagesRefresh | quote }}
+  KEYSTORE_DIR: {{ .Values.envMap.keystoreDir | quote }}
+  MAX_HTTP_HEADER_SIZE: {{ .Values.envMap.maxHttpHeaderSize | quote }}
+  MAX_POST_SIZE: {{ .Values.envMap.maxPostSize | quote }}
+  PACKET_SIZE: {{ .Values.envMap.packetSize | quote }}
+  CONN_TIMEOUT: {{ .Values.envMap.connTimeout | quote }}
+  DIS_UPLOAD_TIMEOUT: {{ .Values.envMap.disUploadTimeout | quote }}
+  CONN_UPLOAD_TIMEOUT: {{ .Values.envMap.connUploadTimeout | quote }}
+  MAX_HEADER_COUNT: {{ .Values.envMap.maxHeaderCount | quote }}
+  MAX_PARAM_COUNT: {{ .Values.envMap.maxParamCount | quote }}
+  MAX_SAVE_POST_SIZE: {{ .Values.envMap.maxSavePostSize | quote }}
+  SOCKET_SOTIMEOUT: {{ .Values.envMap.socketSOTimeout | quote }}
+  MAX_THREADS: {{ .Values.envMap.maxThreads | quote }}
+  ORDS_ONLY: {{ .Values.envMap.ordsOnly | quote }}
+  ORDS_LOGS: {{ .Values.envMap.ordsLogs | quote }}
+  MAX_LIMIT: {{ .Values.envMap.MaxLimit | quote }}
+  INITIAL_LIMIT: {{ .Values.envMap.InitialLimit | quote }}
+  INACTIVITY_TIMEOUT: {{ .Values.envMap.InactivityTimeout | quote }}
+  MAX_CONN_REUSE_COUNT: {{ .Values.envMap.MaxConnectionReuseCount | quote }}
+  STATE_TIMEOUT: {{ .Values.envMap.statementTimeout | quote }}
+  SECRET_FLAG: {{ .Values.envMap.secretFlag | quote }}
