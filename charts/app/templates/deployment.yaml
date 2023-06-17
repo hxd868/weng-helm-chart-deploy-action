@@ -1,62 +1,101 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "app.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  annotations:
-    "deliverybot.dev/secret-checksum": {{ toJson .Values.secrets | sha256sum }}
-  labels:
-{{ include "app.labels" . | indent 4 }}
+  name: {{ .Release.Name }}-application-deployment
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-{{ include "app.matchLabels" . | indent 6 }}
+      app: apex-{{ .Release.Name }}-application
+  replicas: {{ .Values.deployment.replicaCount }} # tells deployment to run "#" pods matching the template
+  revisionHistoryLimit: 10
   template:
     metadata:
-      labels:
-{{ include "app.matchLabels" . | indent 8 }}
+{{ toYaml .Values.deployment.metadata | indent 6 }}
     spec:
-    {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          envFrom:
-            - secretRef:
-                name: {{ include "app.fullname" . }}
-        {{ with .Values.env }}
-          env:
-            {{- toYaml . | nindent 12 }}
-        {{- end }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.internalPort }}
-              protocol: TCP
-          {{ with .Values.readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end -}}
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end -}}
-          {{- with .Values.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
+      - name: {{ .Release.Name }}-application
+        image: {{ .Values.deployment.ordsContainer.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.deployment.ordsContainer.ports.httpPort }}
+        - containerPort: {{ .Values.deployment.ordsContainer.ports.ajpPort }}
+        - containerPort: {{ .Values.deployment.ordsContainer.ports.httpsPort }}
+        readinessProbe:
+          initialDelaySeconds: {{ .Values.deployment.readinessProbe.init }}
+          periodSeconds: {{ .Values.deployment.readinessProbe.period }}
+          httpGet:
+            path: /monitor.html
+            port: {{ .Values.deployment.ordsContainer.ports.httpPort }}
+        livenessProbe:
+          initialDelaySeconds: {{ .Values.deployment.livenessProbe.init }}
+          periodSeconds: {{ .Values.deployment.livenessProbe.period }}
+          httpGet:
+            path: /monitor.html
+            port: {{ .Values.deployment.ordsContainer.ports.httpPort }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-envmap
+        resources: {}
+        volumeMounts:
+        - name: start-configmap
+          mountPath: /sw/pkg/scripts/start.sh
+          subPath: start.sh
+        - name: db-configmap
+          mountPath: /sw/pkg/dbparams/dbconnection.properties
+          subPath: dbconnection.properties
+#          readOnly: true
+      {{ if .Values.deployment.ssoContainer.enabled }}    
+      - name: {{ .Values.deployment.ssoContainer.name }}-webgate
+        image: {{ .Values.deployment.ssoContainer.image }}
+        imagePullPolicy: {{ .Values.deployment.ssoContainer.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.deployment.ssoContainer.httpPort }}
+        command:
+        - "/etc/{{ .Values.appName }}/startup.sh"
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-envmap
+        volumeMounts:
+        - name: {{ .Values.appName }}-config
+          mountPath: /etc/{{ .Values.appName }}
+        - name: webgate-secrets
+          mountPath: /etc/{{ .Values.appName }}/env
+          readOnly: true
+      {{ end }}    
+      restartPolicy: Always
+      volumes:
+      - name: start-configmap
+        configMap:
+          name: start-configmap
+          defaultMode: 0750
+          items:
+          - key: start.sh
+            path: start.sh
+      - name: db-configmap
+        configMap:
+          name: start-configmap
+          defaultMode: 0750
+          items:
+          - key: dbconnection.properties
+            path: dbconnection.properties
+      {{ if .Values.deployment.ssoContainer.enabled }}
+      - name: {{ .Values.appName }}-config
+        configMap:
+          name: {{ .Values.appName }}-config
+          # NOTE: Prefix mode with '0' to be interpretted as octal
+          defaultMode: 0640
+          items:
+          - key: 00-mpm.conf
+            path: 00-mpm.conf
+          - key: 01-webgate.conf
+            path: 01-webgate.conf
+          - key: startup.sh
+            path: startup.sh
+            # Make this file executable
+            mode: 0755
+      - name: webgate-secrets
+        secret:
+          secretName: {{ .Values.appName }}-webgate-artifacts
+          defaultMode: 0640
+      {{ end }}    
+status: {}
