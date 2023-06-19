@@ -1,26 +1,37 @@
-{{- range $ingress := .Values.ingress }}
----
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "app.fullname" . -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ $ingress.name }}
+  name: {{ $fullName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "app.labels" . | indent 4 }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-{{ toYaml $ingress.annotations | indent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
-  rules:
-  - host: {{ $ingress.host }}
-    http:
-      paths:
-      {{ if $ingress.hasMultiPath }} 
-{{ toYaml $ingress.paths | indent 8 }}      
-      {{ else }}  
-      - path: /
-        backend:
-          serviceName: {{ $.Release.Name }}-application-svc
-          servicePort: tomcat-https
-{{ end }}
-
+{{- if .Values.ingress.tls }}
   tls:
-  - hosts:
-    - {{ $ingress.host }}
+  {{- range .Values.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+      secretName: {{ .secretName }}
+  {{- end }}
+{{- end }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            backend:
+              serviceName: {{ $fullName }}
+              servicePort: http
+        {{- end }}
+  {{- end }}
 {{- end }}
