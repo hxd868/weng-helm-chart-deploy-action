@@ -1,104 +1,198 @@
-# replicaCount -- Replica count for deployments.
-replicaCount: 1
+# Default values for apex.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+#
+envMap:
+  swHome: "/sw/pkg"
+  proxyIPs: 123.123.123.123\|123.123.123.124
+  apexImagesRefresh: "True"
+  keystoreDir: "/sw/pkg/keystore"
+  maxHttpHeaderSize: "20971520"
+  maxPostSize: "-1"
+  packetSize: "65536"
+  connTimeout: "30000"
+  disUploadTimeout: "false"
+  connUploadTimeout: "300000"
+  maxHeaderCount: "-1"
+  maxParamCount: "-1"
+  maxSavePostSize: "-1"
+  socketSOTimeout: "30000"
+  maxThreads: "250"
+  dbPort: "1521"
+  ordsOnly: false
+  ordsLogs: "/sw/pkg/ords/conf/logs"
+  MaxLimit: 25
+  InitialLimit: 5
+  InactivityTimeout: 1800
+  MaxConnectionReuseCount: 1000
+  statementTimeout: 1800
+  secretFlag: false
 
-app:
-  # app.name -- Application name: Can be consistent between tracks. (required)
-  name: null
-  # app.version -- Application version: Unique tag for this release. (required)
-  version: null
-
-image:
-  # image.repository -- Docker image repository.
-  repository: nginx
-  # image.tag -- Docker image tag.
-  tag: latest
-  pullPolicy: IfNotPresent
-
-# imagePullSecrets -- Defines secrets to use for pulling docker images.
-imagePullSecrets: []
-
-service:
-  # service.enabled -- Enable service resource.
-  enabled: true
-  # service.type -- Kubernetes service type.
-  type: ClusterIP
-  # service.port -- Kubernetes service port.
-  port: 80
-  # service.internalPort -- Deployment internal port.
-  internalPort: 80
-
-ingress:
-  # ingress.enabled -- Enable ingress resource.
-  enabled: false
-  # ingress.annotations -- Configures annotations for the ingress.
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    # ingress.hosts[0].host -- Host name for routing traffic.
-    - host: chart-example.local
-      # ingress.hosts[0].paths -- Array of routable paths.
-      paths: ["/"]
-
-  # ingress.tls -- Kubernetes ingress tls resource.
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-# resources -- Kubernetes resources for Deployment resources.
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-# nodeSelector -- Kubernetes node selectors for Deployment resources.
-nodeSelector: {}
-
-# tolerations -- Kubernetes tolerations for Deployment resources.
-tolerations: []
-
-# affinity -- Kubernetes affinity resource.
-affinity: {}
-
-# env -- Environment variables for the application.
-env: []
-# - name: ENVIRONMENT
-#   value: production
-
-# secrets -- Creates a secret for the application. All variables passed in env.
-# Uses envFrom in the deployment specification to pass these all through.
-secrets: []
-# - name: TEST
-#   value: "foobar"
-
-# livenessProbe -- Customize the livenessProbe.
-livenessProbe:
-  httpGet:
-    path: /
-    port: http
-
-# readinessProbe -- Customize the readiness probe.
-readinessProbe:
-  httpGet:
-    path: /
-    port: http
-
-migrate:
-  # migrate.enabled -- Run a pod before the application is released to migrate.
-  enabled: false
-  # migrate.command -- Command to run on the migrate pod.
-  command: "rails db:migrate"
-
-# workers -- Deploy background jobs with the same config as the main app.
-workers: []
-#  - name: delayed-job
-#    command: ["rails", "jobs:work"]
-#    enableProbes: true
+configMap:
+  dbconnection_properties: |-
+    jdbc.MaxLimit = 25
+    jdbc.InitialLimit = 5
+    jdbc.InactivityTimeout = 1800
+    jdbc.MaxConnectionReuseCount = 1000
+    jdbc.statementTimeout = 1800
+    security.foreceHTTPS = true
+  start_sh: |-
+    #!/bin/bash
+    source /sw/pkg/params/env.properties
+    echo "******************************************************************************"
+    echo "Handle shutdowns." `date`
+    echo "docker stop --time=30 {container}" `date`
+    echo "******************************************************************************"
+    function gracefulshutdown {
+    ${CATALINA_HOME}/bin/shutdown.sh
+    }
+    trap gracefulshutdown SIGINT
+    trap gracefulshutdown SIGTERM
+    trap gracefulshutdown SIGKILL
+    echo "******************************************************************************"
+    echo "Check DB is available." `date`
+    echo "******************************************************************************"
+    function check_db {
+    CONNECTION=$1
+    RETVAL=`/sw/pkg/sqlcl/bin/sql -silent ${CONNECTION} <<EOF
+    SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TAB OFF
+    SELECT 'Alive' FROM dual;
+    EXIT;
+    EOF`
+    RETVAL="${RETVAL//[$'\t\r\n']}"
+     if [ "${RETVAL}" = "Alive" ]; then
+       DB_OK=0
+     else
+       DB_OK=1
+       echo ${RETVAL}
+     fi
+    }
+    CONNECTION="APEX_PUBLIC_USER/${APEX_PUBLIC_USER_PASSWORD}@//${DB_HOSTNAME}:${DB_PORT}/${DB_SERVICE}"
+    echo "Connection string is : ${CONNECTION}"
+    check_db ${CONNECTION}
+    while [ ${DB_OK} -eq 1 ]
+    do
+      echo "DB not available yet. Waiting for 30 seconds."
+      sleep 30
+      check_db ${CONNECTION}
+    done
+    echo "******************************************************************************"
+    echo "Prepare CATALINA_BASE." `date`
+    echo "******************************************************************************"
+    if [ ! -d ${CATALINA_BASE}/conf ]; then
+      echo "******************************************************************************"
+      echo "New CATALINA_BASE location." `date`
+      echo "******************************************************************************"
+      cp -r ${CATALINA_HOME}/conf ${CATALINA_BASE}
+      cp -r ${CATALINA_HOME}/logs ${CATALINA_BASE}
+      cp -r ${CATALINA_HOME}/temp ${CATALINA_BASE}
+      cp -r ${CATALINA_HOME}/webapps ${CATALINA_BASE}
+      cp -r ${CATALINA_HOME}/work ${CATALINA_BASE}
+    fi
+    if [ ! -d ${CATALINA_BASE}/webapps/i ]; then
+      echo "******************************************************************************"
+      echo "First time APEX images." `date`
+      echo "******************************************************************************"
+      mkdir -p ${CATALINA_BASE}/webapps/i/
+      cp -R ${SOFTWARE_DIR}/images/* ${CATALINA_BASE}/webapps/i/
+      ln -s ${CATALINA_BASE}/webapps/i ${CATALINA_BASE}/webapps/i_@IMAGE_VERSION ## {IMAGE_VERSION will be something like 20_1_0}
+      APEX_IMAGES_REFRESH="false"
+    fi
+    if [ "${APEX_IMAGES_REFRESH}" = "true" ]; then
+      echo "******************************************************************************"
+      echo "Overwrite APEX images." `date`
+      echo "******************************************************************************"
+      cp -R ${SOFTWARE_DIR}/images/* ${CATALINA_BASE}/webapps/i/
+      ln -s ${CATALINA_BASE}/webapps/i ${CATALINA_BASE}/webapps/i_@IMAGE_VERSION ## {IMAGE_VERSION will be something like 20_1_0}
+    fi
+    echo "******************************************************************************"
+    echo "Configure ORDS." `date`
+    echo "******************************************************************************"
+    cd ${ORDS_HOME}
+    cp ${SW_HOME}/params/ords_params.properties ${ORDS_HOME}/params/ords_params.properties
+    echo "sys.password=$(jq ".[]|.[]|.[].Content " ${SW_HOME}/params/dbpassword.properties | sed -e 's/\"//g')" >> ${ORDS_HOME}/params/ords_params.properties
+    $JAVA_HOME/bin/java -jar ords.war configdir ${ORDS_CONF}
+    $JAVA_HOME/bin/java -jar ords.war install --silent
+    echo "******************************************************************************"
+    echo "Configure DB connection" `date`
+    echo "******************************************************************************"
+    $JAVA_HOME/bin/java -jar ords.war set-properties $SW_HOME/dbparams/dbconnection.properties
+    echo "******************************************************************************"
+    echo "Install ORDS. Safe to run on DB with existing config." `date`
+    echo "******************************************************************************"
+    cp ords.war ${CATALINA_BASE}/webapps/
+    echo "******************************************************************************"
+    echo "Configure HTTPS." `date`
+    echo "******************************************************************************"
+    if [ ! -f ${KEYSTORE_DIR}/keystore.jks ]; then
+      mkdir -p ${KEYSTORE_DIR}
+      cd ${KEYSTORE_DIR}
+      ${JAVA_HOME}/bin/keytool -genkey -storetype PKCS12 -keyalg RSA -alias selfsigned -keystore keystore.jks \
+         -dname "CN=${HOSTNAME}, OU=Database and Middleware Team, O=Sherwin-Williams, L=Cleveland, ST=OH, C=US" \
+         -storepass ${KEYSTORE_PASSWORD} -validity 3600 -keysize 2048 -keypass ${KEYSTORE_PASSWORD}
+      sed -i -e "s|###KEYSTORE_DIR###|${KEYSTORE_DIR}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###KEYSTORE_PASSWORD###|${KEYSTORE_PASSWORD}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###PROXY_IPS###|${PROXY_IPS}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_HTTP_HEADER_SIZE###|${MAX_HTTP_HEADER_SIZE}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_POST_SIZE###|${MAX_POST_SIZE}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###PACKET_SIZE###|${PACKET_SIZE}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###CONN_TIMEOUT###|${CONN_TIMEOUT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###DIS_UPLOAD_TIMEOUT###|${DIS_UPLOAD_TIMEOUT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###CONN_UPLOAD_TIMEOUT###|${CONN_UPLOAD_TIMEOUT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_HEADER_COUNT###|${MAX_HEADER_COUNT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_PARAM_COUNT###|${MAX_PARAM_COUNT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_SAVE_POST_SIZE###|${MAX_SAVE_POST_SIZE}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###SOCKET_SOTIMEOUT###|${SOCKET_SOTIMEOUT}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###MAX_THREADS###|${MAX_THREADS}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###AJP_SECRET###|${AJP_SECRET}|g" ${SCRIPTS_DIR}/server.xml
+      sed -i -e "s|###SECRET_FLAG###|${SECRET_FLAG}|g" ${SCRIPTS_DIR}/server.xml
+      cp ${SCRIPTS_DIR}/server.xml ${CATALINA_BASE}/conf
+      cp ${SCRIPTS_DIR}/server.xml ${CATALINA_HOME}/conf
+      cp ${SCRIPTS_DIR}/web.xml ${CATALINA_BASE}/conf
+      cp ${SCRIPTS_DIR}/web.xml ${CATALINA_HOME}/conf
+    fi;
+    echo "******************************************************************************"
+    echo "Start Tomcat." `date`
+    echo "******************************************************************************"
+    ${CATALINA_HOME}/bin/startup.sh
+    echo "******************************************************************************"
+    echo "Tail the catalina.out file as a background process" `date`
+    echo "and wait on the process so script never ends." `date`
+    echo "******************************************************************************"
+    tail -f ${CATALINA_BASE}/logs/catalina.out &
+    bgPID=$!
+    wait $bgPID
+  mpm_conf: |-
+    # Select the MPM module which should be used by uncommenting exactly
+    # one of the following LoadModule lines:
+    # prefork MPM: Implements a non-threaded, pre-forking web server
+    # See: http://httpd.apache.org/docs/2.4/mod/prefork.html
+    #LoadModule mpm_prefork_module modules/mod_mpm_prefork.so
+    # worker MPM: Multi-Processing Module implementing a hybrid
+    # multi-threaded multi-process web server
+    # See: http://httpd.apache.org/docs/2.4/mod/worker.html
+    #
+    LoadModule mpm_worker_module modules/mod_mpm_worker.so
+    ServerLimit         32
+    StartServers         8
+    MaxRequestWorkers 1024
+    MinSpareThreads     25
+    MaxSpareThreads     75
+    ThreadsPerChild     32
+    LimitRequestFieldSize 65536
+    ProxyIOBufferSize 65536
+    Timeout 5400
+    ProxyTimeout 5400
+    # event MPM: A variant of the worker MPM with the goal of consuming
+    # threads only for connections with active processing
+    # See: http://httpd.apache.org/docs/2.4/mod/event.html
+    #
+    #LoadModule mpm_event_module modules/mod_mpm_event.so
+    
+deployment:
+  readinessProbe:
+    init: 30
+    period: 45
+  livenessProbe:
+    init: 30
+    period: 45
