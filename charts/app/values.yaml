@@ -191,8 +191,8 @@ configMap:
     
 deployment:
   readinessProbe:
-    init: 30
-    period: 45
+    init: 420
+    period: 120
   livenessProbe:
-    init: 30
-    period: 45
+    init: 420
+    period: 120
