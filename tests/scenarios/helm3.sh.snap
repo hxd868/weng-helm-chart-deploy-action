@@ -12,7 +12,7 @@
 ::debug::param: secrets = "{"secret":"val"}"
 ::debug::param: valueFiles = "[]"
 ::debug::param: removeCanary = 
-::debug::param: timeout = ""
+::debug::param: timeout = "15"
 ::debug::param: repository = ""
 ::debug::param: atomic = "true"
 ::debug::env: KUBECONFIG="undefined"
