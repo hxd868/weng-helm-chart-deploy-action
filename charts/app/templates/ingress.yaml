@@ -32,7 +32,7 @@ spec:
   tls:
 {{- range $.Values.ingress.spec.tls }}
   - hosts:
-      {{ .host }}
+      - {{ .host }}
 {{- end }}
     secretName: "{{ $.Values.deployment.name }}"
 {{- end }}
