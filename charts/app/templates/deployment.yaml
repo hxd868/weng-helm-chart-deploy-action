@@ -61,7 +61,8 @@ spec:
         - name: webgate-secrets
           mountPath: /etc/{{ .Values.appName }}/env
           readOnly: true
-      {{ end }}    
+      {{ end }}
+
       restartPolicy: Always
       volumes:
       - name: start-configmap
